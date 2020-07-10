@@ -7,7 +7,7 @@ properties = {
         'radius': 9,
         'color': (.5, .5, .5),
         'velocity': 5,
-        'rotation': 5,
+        'rotation': 10,
         'max_velocity': 5
     },
     'bullet': {
@@ -28,7 +28,7 @@ properties = {
         'radius': 8,
         'color': (1., .0, .0),
         'velocity': 3,
-        'rotation': 5,
+        'rotation': 15,
         'max_velocity': 3
     }
 }

@@ -40,12 +40,13 @@ class SpaceCrystalsEnv(gym.Env):
     def step(self, action):
         # move spaceship
         self.spaceship.advance()
-        # move enemies
-        for enemy in self.enemies:
-            enemy.advance()
         # move bullets
         for bullet in self.bullets:
             bullet.advance()
+        # move enemies
+        for enemy in self.enemies:
+            enemy.advance(self.spaceship.x, self.spaceship.y)
+
         return [], 0, False, {}
 
     def reset(self):
