@@ -1,0 +1,1 @@
+from gym_space_crystals.envs.space_crystals_env import SpaceCrystalsEnv
