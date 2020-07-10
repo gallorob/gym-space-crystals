@@ -1,9 +1,8 @@
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
-from gym.envs.classic_control import rendering
 import numpy as np
-from gym_space_crystals.envs.entities import *
+from gym_space_crystals.envs._entities import *
 
 
 def init_scene(env):
@@ -75,6 +74,3 @@ class SpaceCrystalsEnv(gym.Env):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
-
-
-
