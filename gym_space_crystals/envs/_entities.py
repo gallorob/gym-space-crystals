@@ -6,24 +6,31 @@ import random
 # -- Entities --
 
 
-class Spaceship:
-    def __init__(self, x, y):
+class Entity:
+    def __init__(self, x, y, ent, rotation=None, velocity=None):
         self.x = x
         self.y = y
-        self.velocity = 0
-        self.rotation = 0
-        self.radius = SS_RADIUS
+        self.ent = ent
+        self.radius = properties.get(ent).get('radius')
+        self.rotation = properties.get(ent).get('rotation') if rotation is None else rotation
+        self.velocity = properties.get(ent).get('velocity') if velocity is None else velocity
         self.trans = rendering.Transform(translation=(x, y))
         self.shape = self.build_shape()
 
     def build_shape(self):
         img = rendering.make_circle(self.radius)
-        img.set_color(SS_COLOR[0], SS_COLOR[1], SS_COLOR[2])
+        c = properties.get(self.ent).get('color')
+        img.set_color(c[0], c[1], c[2])
         img.add_attr(self.trans)
         return img
 
     def rotate(self, cw=True):
         self.rotation += math.radians(SS_ROTATION) * (1 if cw else -1)
+
+
+class Spaceship(Entity):
+    def __init__(self, x, y):
+        super(Spaceship, self).__init__(x, y, ent='spaceship')
 
     def shoot(self):
         # generate bullet with same velocity and rotation as spaceship
@@ -38,21 +45,9 @@ class Spaceship:
         self.trans.set_translation(self.x, self.y)
 
 
-class Bullet:
+class Bullet(Entity):
     def __init__(self, x, y, rotation=0, velocity=1):
-        self.x = x
-        self.y = y
-        self.rotation = rotation
-        self.velocity = velocity
-        self.radius = B_RADIUS
-        self.trans = rendering.Transform(translation=(x, y))
-        self.shape = self.build_shape()
-
-    def build_shape(self):
-        img = rendering.make_circle(self.radius)
-        img.set_color(B_COLOR[0], B_COLOR[1], B_COLOR[2])
-        img.add_attr(self.trans)
-        return img
+        super(Bullet, self).__init__(x, y, ent='bullet', rotation=rotation, velocity=velocity)
 
     def advance(self):
         self.x += math.cos(self.rotation) * self.velocity
@@ -60,39 +55,14 @@ class Bullet:
         self.trans.set_translation(self.x, self.y)
 
 
-class Crystal:
+class Crystal(Entity):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.radius = C_RADIUS
-        self.trans = rendering.Transform(translation=(x, y))
-        self.shape = self.build_shape()
-
-    def build_shape(self):
-        img = rendering.make_circle(self.radius)
-        img.set_color(C_COLOR[0], C_COLOR[1], C_COLOR[2])
-        img.add_attr(self.trans)
-        return img
+        super(Crystal, self).__init__(x, y, ent='crystal')
 
 
-class Enemy:
+class Enemy(Entity):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.velocity = 0
-        self.rotation = 0
-        self.radius = E_RADIUS
-        self.trans = rendering.Transform(translation=(x, y))
-        self.shape = self.build_shape()
-
-    def build_shape(self):
-        img = rendering.make_circle(self.radius)
-        img.set_color(E_COLOR[0], E_COLOR[1], E_COLOR[2])
-        img.add_attr(self.trans)
-        return img
-
-    def rotate(self, cw=True):
-        self.rotation += math.radians(SS_ROTATION) * (1 if cw else -1)
+        super(Enemy, self).__init__(x, y, ent='enemy')
 
     def advance(self, target_x=0, target_y=0):
         if self.x == target_x and self.y == target_y:
