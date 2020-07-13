@@ -12,8 +12,8 @@ class Entity:
         self.y = y
         self._type = _type
         self.radius = properties.get(_type).get('radius')
-        self.rotation = properties.get(_type).get('rotation') if rotation is None else rotation
-        self.velocity = properties.get(_type).get('velocity') if velocity is None else velocity
+        self.rotation = properties.get(_type).get('initial_rotation') if rotation is None else rotation
+        self.velocity = properties.get(_type).get('initial_velocity') if velocity is None else velocity
         self.trans = rendering.Transform(translation=(x, y))
         self.shape = self.build_shape()
 
@@ -25,19 +25,19 @@ class Entity:
         return img
 
     def rotate(self, cw=True):
-        self.rotation += math.radians(properties.get(self._type).get('rotation')) * (1 if cw else -1)
+        self.rotation += math.radians(properties.get(self._type).get('step_rotation')) * (1 if cw else -1)
 
 
 class Spaceship(Entity):
     def __init__(self, x, y):
-        super(Spaceship, self).__init__(x, y, _type='spaceship')
+        super(Spaceship, self).__init__(x, y, _type='spaceship', rotation=0, velocity=0)
 
     def shoot(self):
         # generate bullet with same velocity and rotation as spaceship
         return Bullet(self.x, self.y, self.rotation, self.velocity + 1)
 
     def advance(self):
-        self.velocity += random.random() * properties.get(self._type).get('velocity')
+        self.velocity += properties.get(self._type).get('step_velocity')
         if self.velocity >= properties.get(self._type).get('max_velocity'):
             self.velocity = properties.get(self._type).get('max_velocity')
         self.x += math.cos(self.rotation) * self.velocity
@@ -57,15 +57,15 @@ class Bullet(Entity):
 
 class Crystal(Entity):
     def __init__(self, x, y):
-        super(Crystal, self).__init__(x, y, _type='crystal')
+        super(Crystal, self).__init__(x, y, _type='crystal', rotation=0, velocity=0)
 
 
 class Enemy(Entity):
     def __init__(self, x, y):
-        super(Enemy, self).__init__(x, y, _type='enemy')
+        super(Enemy, self).__init__(x, y, _type='enemy', rotation=0, velocity=0)
 
     def advance(self, target_x=0, target_y=0):
-        self.velocity += random.random() * properties.get(self._type).get('velocity')
+        self.velocity += properties.get(self._type).get('step_velocity')
         if self.velocity >= properties.get(self._type).get('max_velocity'):
             self.velocity = properties.get(self._type).get('max_velocity')
         # update rotation towards target
@@ -82,3 +82,27 @@ def are_intersecting(e1, e2):
     d1 = math.fabs(e1.x - e2.x)
     d2 = math.fabs(e1.y - e2.y)
     return (d1 < e1.radius or d1 < e2.radius) and (d2 < e1.radius or d2 < e2.radius)
+
+
+def are_intersecting(p1, p2, e):
+    x1, y1 = p1
+    x2, y2 = p2
+    r = e.radius
+    # entity center
+    x0 = e.x
+    y0 = e.y
+    # compute distance point-line
+    dist = math.fabs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1) / math.sqrt(math.pow(y2 - y1, 2) + math.pow(x2 - x1, 2))
+    if dist <= r:
+        # make sure we're in the same quadrant
+        if included(x1, x2, x0) and included(y1, y2, y0):
+            return properties.get(e._type).get('value'), distance(x1, y1, e)
+    return None, 0
+
+
+def distance(x, y, e):
+    return math.sqrt(math.pow(e.x - x, 2) + math.pow(e.y - y, 2))
+
+
+def included(a, b, v):
+    return a <= v <= b if a <= b else b <= v <= a

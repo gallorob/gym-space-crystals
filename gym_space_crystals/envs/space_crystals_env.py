@@ -11,10 +11,13 @@ def init_scene(env):
     del env.enemies
     del env.bullets
 
-    env.spaceship = Spaceship(30, 50)
-    env.crystals = [Crystal(300, 200)]
-    env.enemies = [Enemy(100, 300)]
-    env.bullets = [Bullet(200, 100)]
+    env.spaceship = Spaceship(300, 200)
+    env.crystals = [Crystal(300, 300)]
+    env.enemies = [Enemy(300, 250),
+                   Enemy(300 + 100*math.cos(math.radians(30)), 200 + 100*math.sin(math.radians(30)))
+                   ]
+    env.bullets = [Bullet(200, 100),
+                   ]
 
 
 class SpaceCrystalsEnv(gym.Env):
@@ -22,7 +25,11 @@ class SpaceCrystalsEnv(gym.Env):
 
     def __init__(self):
         self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Box(np.zeros(12), np.ones(12) * 10,  dtype=np.float64)
+        self.observation_space = spaces.Box(np.zeros((N_OBSERVATIONS, 2)),
+                                            np.ones((N_OBSERVATIONS, 2)) * max(SCREEN_WIDTH, SCREEN_HEIGHT),
+                                            dtype=np.float64)
+        self.state = None
+        self.dtheta = math.radians(360 / N_OBSERVATIONS)
 
         self.spaceship = None
         self.crystals = []
@@ -38,21 +45,23 @@ class SpaceCrystalsEnv(gym.Env):
         return [seed]
 
     def step(self, action):
-        # move spaceship
+        # update positions
         self.spaceship.advance()
-        # move bullets
         for bullet in self.bullets:
             bullet.advance()
-        # move enemies
+            self.check_bounds(bullet, self.bullets)
         for enemy in self.enemies:
             enemy.advance(self.spaceship.x, self.spaceship.y)
+            self.check_bounds(enemy, self.enemies)
+        self.make_observations()
 
-        return [], 0, False, {}
+        return self.state, 0, False, {}
 
     def reset(self):
         init_scene(self)
         # compute obs
-        # return obs
+        self.make_observations()
+        return self.state
 
     def render(self, mode='human'):
         if self.viewer is None:
@@ -75,3 +84,40 @@ class SpaceCrystalsEnv(gym.Env):
         if self.viewer:
             self.viewer.close()
             self.viewer = None
+
+# -- Sugar coding functions
+
+    def check_bounds(self, entity, arr):
+        if entity.x >= SCREEN_WIDTH or entity.y >= SCREEN_HEIGHT:
+            arr.remove(entity)
+            self.viewer.geoms.remove(entity.shape)
+
+# -- Interacting with the environment --
+
+    def make_observations(self):
+        # reset state
+        self.state = np.zeros((N_OBSERVATIONS, 2))
+        # reference arrays for quicker computations
+        crystals = self.crystals.copy()
+        enemies = self.enemies.copy()
+        # make observations
+        for i in range(N_OBSERVATIONS):
+            x = self.spaceship.x + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.cos(self.spaceship.rotation + i * self.dtheta)
+            y = self.spaceship.y + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.sin(self.spaceship.rotation + i * self.dtheta)
+            # check for crystals
+            for crystal in crystals:
+                t, d = are_intersecting((self.spaceship.x, self.spaceship.y), (x, y), crystal)
+                if t is not None:
+                    self.state[i] = np.array([t, d])
+                    crystals.remove(crystal)
+            # check for enemies
+            for enemy in enemies:
+                t, d = are_intersecting((self.spaceship.x, self.spaceship.y), (x, y), enemy)
+                if t is not None:
+                    if self.state[i][0] != 0:
+                        if self.state[i][1] > d:
+                            self.state[i] = np.array([t, d])
+                            enemies.remove(enemy)
+                    else:
+                        self.state[i] = np.array([t, d])
+                        enemies.remove(enemy)
