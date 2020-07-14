@@ -1,5 +1,5 @@
 import gym
-from gym import error, spaces, utils
+from gym import error, spaces, utils, logger
 from gym.utils import seeding
 import numpy as np
 from gym_space_crystals.envs._entities import *
@@ -34,6 +34,7 @@ class SpaceCrystalsEnv(gym.Env):
         self.state = None
         self.dtheta = math.radians(360 / N_OBSERVATIONS)
         self.done = False
+        self.steps_beyond_done = None
 
         self.spaceship = None
         self.crystals = []
@@ -57,25 +58,62 @@ class SpaceCrystalsEnv(gym.Env):
         return [seed]
 
     def step(self, action: int):
-        # apply action
-        if action is not None:
-            self.actions.get(action)()
+        err_msg = "%r (%s) invalid" % (action, type(action))
+        assert self.action_space.contains(action), err_msg
 
-        # update positions
-        self.spaceship.advance()
-        for bullet in self.bullets:
-            bullet.advance()
-            self.check_bounds(bullet, self.bullets)
-        for enemy in self.enemies:
-            enemy.advance(self.spaceship.x, self.spaceship.y)
-            self.check_bounds(enemy, self.enemies)
+        if not self.done:
+            reward = 0.0  # todo: base value
+            # apply action
+            if action is not None:
+                self.actions.get(action)()
 
-        # remove enemies if hit by bullet
-        # todo
+            # update positions
+            self.spaceship.advance()
+            for bullet in self.bullets:
+                bullet.advance()
+                self.check_bounds(bullet, self.bullets)
+            for enemy in self.enemies:
+                enemy.advance(self.spaceship.x, self.spaceship.y)
+                self.check_bounds(enemy, self.enemies)
 
-        self.make_observations()
+            # remove enemies if hit by bullet
+            for enemy in self.enemies:
+                for bullet in self.bullets:
+                    if entity_intersection(enemy, bullet):
+                        self.bullets.remove(bullet)
+                        self.viewer.geoms.remove(bullet.shape)
+                        self.enemies.remove(enemy)
+                        self.viewer.geoms.remove(enemy.shape)
+                        # increment reward
 
-        return self.state, 0, False, {}
+            # remove spaceship if out of bounds or collided with enemy
+            if self.spaceship.x >= SCREEN_WIDTH or self.spaceship.y >= SCREEN_HEIGHT or self.spaceship.x <= 0.0 or self.spaceship.y <= 0.0:
+                self.done = True  # terminate session
+                self.viewer.geoms.remove(self.spaceship.shape)
+                # decrease reward
+            else:
+                for enemy in self.enemies:
+                    if entity_intersection(self.spaceship, enemy):
+                        self.done = True  # terminate session
+                        self.viewer.geoms.remove(self.spaceship.shape)
+                        # decrease reward
+
+            self.make_observations()
+        elif self.steps_beyond_done is None:
+            self.steps_beyond_done = 0
+            reward = 0.0  # todo: base value
+        else:
+            if self.steps_beyond_done == 0:
+                logger.warn(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned done = True. You "
+                    "should always call 'reset()' once you receive 'done = "
+                    "True' -- any further steps are undefined behavior."
+                )
+            self.steps_beyond_done += 1
+            reward = 0.0  # todo: base value
+
+        return self.state, 0, self.done, {}
 
     def reset(self):
         init_scene(self)
@@ -108,7 +146,7 @@ class SpaceCrystalsEnv(gym.Env):
 # -- Sugar coding functions
 
     def check_bounds(self, entity: Entity, arr: list):
-        if entity.x >= SCREEN_WIDTH or entity.y >= SCREEN_HEIGHT:
+        if entity.x >= SCREEN_WIDTH or entity.y >= SCREEN_HEIGHT or entity.x <= 0.0 or entity.y <= 0.0:
             arr.remove(entity)
             self.viewer.geoms.remove(entity.shape)
 
@@ -126,13 +164,13 @@ class SpaceCrystalsEnv(gym.Env):
             y = self.spaceship.y + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.sin(self.spaceship.rotation + i * self.dtheta)
             # check for crystals
             for crystal in crystals:
-                t, d = are_intersecting((self.spaceship.x, self.spaceship.y), (x, y), crystal)
+                t, d = line_entity_intersection((self.spaceship.x, self.spaceship.y), (x, y), crystal)
                 if t is not None:
                     self.state[i] = np.array([t, d])
                     crystals.remove(crystal)
             # check for enemies
             for enemy in enemies:
-                t, d = are_intersecting((self.spaceship.x, self.spaceship.y), (x, y), enemy)
+                t, d = line_entity_intersection((self.spaceship.x, self.spaceship.y), (x, y), enemy)
                 if t is not None:
                     if self.state[i][0] != 0:
                         if self.state[i][1] > d:

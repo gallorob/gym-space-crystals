@@ -83,13 +83,21 @@ class Enemy(Entity):
 
 # -- Functions --
 
-def are_intersecting(e1, e2):
+def entity_intersection(e1: Entity, e2: Entity) -> bool:
     d1 = math.fabs(e1.x - e2.x)
     d2 = math.fabs(e1.y - e2.y)
     return (d1 < e1.radius or d1 < e2.radius) and (d2 < e1.radius or d2 < e2.radius)
 
 
-def are_intersecting(p1, p2, e):
+def line_entity_intersection(p1: tuple, p2: tuple, e: Entity) -> tuple:
+    """
+    Check if the line defined by two points intersect with the entity
+    :rtype: tuple
+    :param p1: The first point
+    :param p2: The second point
+    :param e: The entity
+    :return: A tuple with the entity type and its distance from the original point, else (None, 0)
+    """
     x1, y1 = p1
     x2, y2 = p2
     r = e.radius
