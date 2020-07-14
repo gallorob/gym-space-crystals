@@ -31,13 +31,18 @@ class Entity:
 class Spaceship(Entity):
     def __init__(self, x, y):
         super(Spaceship, self).__init__(x, y, _type='spaceship', rotation=0, velocity=0)
+        self.acceleration = properties.get(self._type).get('initial_acceleration')
 
     def shoot(self):
         # generate bullet with same velocity and rotation as spaceship
-        return Bullet(self.x, self.y, self.rotation, self.velocity + 1)
+        return Bullet(self.x, self.y, self.rotation, (self.velocity * 2) if (self.velocity * 2) > 0.0 else 1)
+
+    def change_acceleration(self, inc=True):
+        self.acceleration += properties.get(self._type).get('acceleration') * (1 if inc else -1)
 
     def advance(self):
-        self.velocity += properties.get(self._type).get('step_velocity')
+        self.velocity += self.acceleration
+        self.acceleration = 0
         if self.velocity >= properties.get(self._type).get('max_velocity'):
             self.velocity = properties.get(self._type).get('max_velocity')
         self.x += math.cos(self.rotation) * self.velocity
@@ -98,6 +103,19 @@ def are_intersecting(p1, p2, e):
         if included(x1, x2, x0) and included(y1, y2, y0):
             return properties.get(e._type).get('value'), distance(x1, y1, e)
     return None, 0
+
+
+def border_distance(x, y, theta):
+    # distance from right border
+    dx1 = (SCREEN_WIDTH - x) / math.cos(theta) if math.fabs(math.cos(theta)) > 1e-6 else 0.0
+    # distance from left border
+    dx2 = (x - 0) / math.cos(theta) if math.fabs(math.cos(theta)) > 1e-6 else 0.0
+    # distance from lower border
+    dy1 = (y - 0) * math.sin(theta)
+    # distance from upper border
+    dy2 = (SCREEN_HEIGHT - y) * math.sin(theta)
+    # compute distance to closest borders
+    return math.sqrt(math.pow(min(dx1, dx2), 2) + math.pow(min(dy1, dy2), 2))
 
 
 def distance(x, y, e):

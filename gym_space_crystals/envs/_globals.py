@@ -2,14 +2,16 @@
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
 N_OBSERVATIONS = 12
+BORDER_VALUE = -1
 # -- Entities properties --
 properties = {
     'spaceship': {
         'radius': 9,
         'color': (.5, .5, .5),
         'initial_velocity': 0,
-        'step_velocity': 2,
         'max_velocity': 5,
+        'initial_acceleration': 0,
+        'acceleration': 0.5,
         'initial_rotation': 0,
         'step_rotation': 5,
         'value': 0

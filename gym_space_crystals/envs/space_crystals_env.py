@@ -5,16 +5,19 @@ import numpy as np
 from gym_space_crystals.envs._entities import *
 
 
-def init_scene(env):
+def init_scene(env: gym.Env):
     del env.spaceship
     del env.crystals
     del env.enemies
     del env.bullets
 
-    env.spaceship = Spaceship(300, 200)
-    env.crystals = [Crystal(300, 300)]
-    env.enemies = [Enemy(300, 250),
-                   Enemy(300 + 100*math.cos(math.radians(30)), 200 + 100*math.sin(math.radians(30)))
+    env.spaceship = Spaceship(100, 100)
+    env.crystals = [
+        Crystal(300, 300)
+    ]
+    env.enemies = [
+        Enemy(300, 100),
+        Enemy(300 + 100*math.cos(math.radians(30)), 200 + 100*math.sin(math.radians(30)))
                    ]
     env.bullets = [Bullet(200, 100),
                    ]
@@ -24,17 +27,26 @@ class SpaceCrystalsEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Box(np.zeros((N_OBSERVATIONS, 2)),
                                             np.ones((N_OBSERVATIONS, 2)) * max(SCREEN_WIDTH, SCREEN_HEIGHT),
                                             dtype=np.float64)
         self.state = None
         self.dtheta = math.radians(360 / N_OBSERVATIONS)
+        self.done = False
 
         self.spaceship = None
         self.crystals = []
         self.enemies = []
         self.bullets = []
+
+        self.actions = {
+            0: self.accelerate,
+            1: self.decelerate,
+            2: self.rotate_cw,
+            3: self.rotate_ccw,
+            4: self.shoot
+        }
 
         self.viewer = None
         self.seed()
@@ -44,7 +56,11 @@ class SpaceCrystalsEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def step(self, action):
+    def step(self, action: int):
+        # apply action
+        if action is not None:
+            self.actions.get(action)()
+
         # update positions
         self.spaceship.advance()
         for bullet in self.bullets:
@@ -53,6 +69,10 @@ class SpaceCrystalsEnv(gym.Env):
         for enemy in self.enemies:
             enemy.advance(self.spaceship.x, self.spaceship.y)
             self.check_bounds(enemy, self.enemies)
+
+        # remove enemies if hit by bullet
+        # todo
+
         self.make_observations()
 
         return self.state, 0, False, {}
@@ -87,7 +107,7 @@ class SpaceCrystalsEnv(gym.Env):
 
 # -- Sugar coding functions
 
-    def check_bounds(self, entity, arr):
+    def check_bounds(self, entity: Entity, arr: list):
         if entity.x >= SCREEN_WIDTH or entity.y >= SCREEN_HEIGHT:
             arr.remove(entity)
             self.viewer.geoms.remove(entity.shape)
@@ -121,3 +141,26 @@ class SpaceCrystalsEnv(gym.Env):
                     else:
                         self.state[i] = np.array([t, d])
                         enemies.remove(enemy)
+            # else, set border distance
+            if self.state[i][0] == 0.0:
+                self.state[i][0] = BORDER_VALUE
+                self.state[i][1] = border_distance(self.spaceship.x, self.spaceship.y, self.spaceship.rotation + i * self.dtheta)
+
+# -- Spaceship's actions --
+
+    def accelerate(self):
+        self.spaceship.change_acceleration()
+
+    def decelerate(self):
+        self.spaceship.change_acceleration(inc=False)
+
+    def rotate_cw(self):
+        self.spaceship.rotate()
+
+    def rotate_ccw(self):
+        self.spaceship.rotate(cw=False)
+
+    def shoot(self):
+        bullet = self.spaceship.shoot()
+        self.bullets.append(bullet)
+        self.viewer.add_geom(bullet.shape)
