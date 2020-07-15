@@ -24,9 +24,9 @@ class Entity:
         self.x = x
         self.y = y
         self._type = _type
-        self.radius = properties.get(_type).get('radius')
-        self.rotation = properties.get(_type).get('initial_rotation') if rotation is None else rotation
-        self.velocity = properties.get(_type).get('initial_velocity') if velocity is None else velocity
+        self.radius = ENTITIES.get(_type).get('radius')
+        self.rotation = ENTITIES.get(_type).get('initial_rotation') if rotation is None else rotation
+        self.velocity = ENTITIES.get(_type).get('initial_velocity') if velocity is None else velocity
         self.trans = rendering.Transform(translation=(x, y))
         self.shape = self.build_shape()
 
@@ -36,9 +36,9 @@ class Entity:
 
         :return: A Geom object for the renderer
         """
-        img = rendering.make_circle(self.radius)
-        c = properties.get(self._type).get('color')
-        img.set_color(c[0], c[1], c[2])
+        img = rendering.Image(ENTITIES.get(self._type).get('shape'), self.radius, self.radius)
+        # workaround to get the image colors to render correctly (https://github.com/openai/gym/issues/1994)
+        img.set_color(1., 1., 1.)
         img.add_attr(self.trans)
         return img
 
@@ -48,7 +48,8 @@ class Entity:
 
         :param cw: Rotate clockwise if True, else counterclockwise
         """
-        self.rotation += math.radians(properties.get(self._type).get('step_rotation')) * (1 if cw else -1)
+        self.rotation += math.radians(ENTITIES.get(self._type).get('step_rotation')) * (1 if cw else -1)
+        self.trans.set_rotation(self.rotation)
 
 
 class Bullet(Entity):
@@ -62,6 +63,7 @@ class Bullet(Entity):
         :param velocity: The initial velocity
         """
         super(Bullet, self).__init__(x, y, _type='bullet', rotation=rotation, velocity=velocity)
+        self.trans.set_rotation(self.rotation)
 
     def advance(self):
         """
@@ -83,7 +85,7 @@ class Spaceship(Entity):
         :param y: The Y coordinate
         """
         super(Spaceship, self).__init__(x, y, _type='spaceship', rotation=0, velocity=0)
-        self.acceleration = properties.get(self._type).get('initial_acceleration')
+        self.acceleration = ENTITIES.get(self._type).get('initial_acceleration')
 
     def shoot(self) -> Bullet:
         """
@@ -98,7 +100,7 @@ class Spaceship(Entity):
 
         :param inc: Increment or Decrement the acceleration
         """
-        self.acceleration += properties.get(self._type).get('acceleration') * (1 if inc else -1)
+        self.acceleration += ENTITIES.get(self._type).get('acceleration') * (1 if inc else -1)
 
     def advance(self):
         """
@@ -108,8 +110,8 @@ class Spaceship(Entity):
         """
         self.velocity += self.acceleration
         self.acceleration = 0
-        if self.velocity >= properties.get(self._type).get('max_velocity'):
-            self.velocity = properties.get(self._type).get('max_velocity')
+        if self.velocity >= ENTITIES.get(self._type).get('max_velocity'):
+            self.velocity = ENTITIES.get(self._type).get('max_velocity')
         self.x += math.cos(self.rotation) * self.velocity
         self.y += math.sin(self.rotation) * self.velocity
         self.trans.set_translation(self.x, self.y)
@@ -146,15 +148,16 @@ class Enemy(Entity):
         :param target_y: The target point's Y
         """
         # update velocity
-        self.velocity += properties.get(self._type).get('step_velocity')
-        if self.velocity >= properties.get(self._type).get('max_velocity'):
-            self.velocity = properties.get(self._type).get('max_velocity')
+        self.velocity += ENTITIES.get(self._type).get('step_velocity')
+        if self.velocity >= ENTITIES.get(self._type).get('max_velocity'):
+            self.velocity = ENTITIES.get(self._type).get('max_velocity')
         # update rotation towards target
         self.rotation = math.atan2(target_y - self.y, target_x - self.x)
         # update position
         self.x += math.cos(self.rotation) * self.velocity
         self.y += math.sin(self.rotation) * self.velocity
         self.trans.set_translation(self.x, self.y)
+        self.trans.set_rotation(self.rotation)
 
 
 # -- Functions --
@@ -193,7 +196,7 @@ def line_entity_intersection(p1: Tuple[float, float], p2: Tuple[float, float], e
     if dist <= r:
         # make sure we're in the same quadrant
         if included(x1, x2, x0) and included(y1, y2, y0):
-            return properties.get(e._type).get('value'), distance(x1, y1, e)
+            return ENTITIES.get(e._type).get('value'), distance(x1, y1, e)
     return 0.0, 0.0
 
 

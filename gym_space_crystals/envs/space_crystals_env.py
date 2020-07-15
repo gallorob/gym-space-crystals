@@ -13,28 +13,35 @@ def init_scene(env: gym.Env):
     :param env: The environment
     """
     # clean existing scene
-    del env.spaceship
-    del env.crystals
-    del env.enemies
-    del env.bullets
+    env.spaceship = None
+    env.crystals = []
+    env.enemies = []
+    env.bullets = []
 
     # initialize the scene
-    env.spaceship = Spaceship(100, 100)
-    env.crystals = [
-        Crystal(300, 300)
-    ]
-    env.enemies = [
-        Enemy(300, 100),
-        Enemy(300 + 100*math.cos(math.radians(30)), 200 + 100*math.sin(math.radians(30)))
-                   ]
-    env.bullets = [Bullet(200, 100),
-                   ]
+    # add the spaceship
+    env.spaceship = Spaceship(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+    # add the crystals
+    for _ in range(ENVIRONMENT.get('n_crystals')):
+        env.crystals.append(
+            Crystal(np.random.normal(ENVIRONMENT.get('crystals_mean_1'), ENVIRONMENT.get('crystals_std_1'), 1),
+                    np.random.normal(ENVIRONMENT.get('crystals_mean_2'), ENVIRONMENT.get('crystals_std_2'), 1))
+        )
+    # add the enemies
+    for _ in range(ENVIRONMENT.get('n_enemies')):
+        env.enemies.append(
+            Enemy(np.random.normal(ENVIRONMENT.get('enemies_mean_1'), ENVIRONMENT.get('enemies_std_1'), 1),
+                  np.random.normal(ENVIRONMENT.get('enemies_mean_2'), ENVIRONMENT.get('enemies_std_2'), 1))
+        )
 
 
 class SpaceCrystalsEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self):
+        """
+        Create the environment
+        """
         # all available actions
         # int -> function
         self.actions = {
@@ -67,6 +74,8 @@ class SpaceCrystalsEnv(gym.Env):
         self.enemies = []
         self.bullets = []
 
+        self.reward = 0
+
         # renderer
         self.viewer = None
 
@@ -95,7 +104,7 @@ class SpaceCrystalsEnv(gym.Env):
 
         # execute the action if possible
         if not self.done:
-            reward = 0.0  # todo: base value
+            self.reward = MOVED
             # apply action
             if action is not None:
                 self.actions.get(action)()
@@ -109,6 +118,13 @@ class SpaceCrystalsEnv(gym.Env):
                 enemy.advance(self.spaceship.x, self.spaceship.y)
                 self.check_bounds(enemy, self.enemies)
 
+            # remove crystals if collected
+            for crystal in self.crystals:
+                if entity_intersection(self.spaceship, crystal):
+                    self.crystals.remove(crystal)
+                    self.viewer.geoms.remove(crystal.shape)
+                    self.reward += GOT_CRYSTAL
+
             # remove enemies if hit by bullet
             for enemy in self.enemies:
                 for bullet in self.bullets:
@@ -118,25 +134,35 @@ class SpaceCrystalsEnv(gym.Env):
                         self.enemies.remove(enemy)
                         self.viewer.geoms.remove(enemy.shape)
                         # increment reward
+                        self.reward += KILLED_ENEMY
+                        break  # no need to check for other bullets hitting the same enemy
 
             # remove spaceship if out of bounds or collided with enemy
             if self.spaceship.x >= SCREEN_WIDTH or self.spaceship.y >= SCREEN_HEIGHT or self.spaceship.x <= 0.0 or self.spaceship.y <= 0.0:
                 self.done = True  # terminate session
                 self.viewer.geoms.remove(self.spaceship.shape)
                 # decrease reward
+                self.reward += DIED
             else:
                 for enemy in self.enemies:
                     if entity_intersection(self.spaceship, enemy):
                         self.done = True  # terminate session
                         self.viewer.geoms.remove(self.spaceship.shape)
                         # decrease reward
+                        self.reward += DIED
+                        break  # no need to check for other enemies hitting the spaceship
+
+            # check end of episode
+            if len(self.crystals) == 0:
+                self.reward += COLLECTED_ALL
+                self.done = True
 
             self.make_observations()
 
         # allow one more step after done
         elif self.steps_beyond_done is None:
             self.steps_beyond_done = 0
-            reward = 0.0  # todo: base value
+            self.reward = 0.0
 
         # emit a warning for repetitions after done
         else:
@@ -144,11 +170,11 @@ class SpaceCrystalsEnv(gym.Env):
                 logger.warn("You called the 'step()' function after the environment ended. Use 'reset()' when you "
                             "receive 'done = True'!")
             self.steps_beyond_done += 1
-            reward = 0.0  # todo: base value
+            self.reward = 0.0
 
         # end of step()
         # return observations, reward, done, infos
-        return self.state, 0, self.done, {}
+        return self.state, self.reward, self.done, {}
 
     def reset(self):
         # reset the scene
@@ -274,6 +300,7 @@ class SpaceCrystalsEnv(gym.Env):
 
         The bullet is added to the scene
         """
+        self.reward -= SHOT
         bullet = self.spaceship.shoot()
         self.bullets.append(bullet)
         self.viewer.add_geom(bullet.shape)
