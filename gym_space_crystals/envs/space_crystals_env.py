@@ -262,16 +262,16 @@ class SpaceCrystalsEnv(gym.Env):
                 if t == 0.0:
                     if self.state[i][0] != 0:
                         if self.state[i][1] > d:
-                            self.state[i] = np.array([t, d])
+                            self.state[i] = np.array([t, d / DIAG])
                             enemies.remove(enemy)
                     else:
-                        self.state[i] = np.array([t, d])
+                        self.state[i] = np.array([t, d / DIAG])
                         enemies.remove(enemy)
             # else, set border distance
             if self.state[i][0] == 0.0:
                 self.state[i][0] = BORDER_VALUE
                 self.state[i][1] = border_distance(self.spaceship.x, self.spaceship.y,
-                                                   self.spaceship.rotation + i * self.dtheta)
+                                                   self.spaceship.rotation + i * self.dtheta) / DIAG
 
     # -- Spaceship's actions --
 

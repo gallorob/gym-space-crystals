@@ -1,6 +1,9 @@
+import math
+
 # -- Global variables --
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
+DIAG = math.sqrt(math.pow(SCREEN_WIDTH, 2) + math.pow(SCREEN_HEIGHT, 2))
 N_OBSERVATIONS = 12
 BORDER_VALUE = -1
 # -- Environment properties --
@@ -19,7 +22,7 @@ ENVIRONMENT = {
 # -- Entities properties --
 ENTITIES = {
     'spaceship': {
-        'radius': 9,
+        'radius': 20,
         'initial_velocity': 0,
         'max_velocity': 5,
         'initial_acceleration': 0,
@@ -30,7 +33,7 @@ ENTITIES = {
         'shape': 'gym_space_crystals/envs/assets/spaceship.png'
     },
     'bullet': {
-        'radius': 3,
+        'radius': 10,
         'initial_velocity': 0,
         'step_velocity': 0,
         'max_velocity': 0,
@@ -39,7 +42,7 @@ ENTITIES = {
         'shape': 'gym_space_crystals/envs/assets/bullet.png'
     },
     'crystal': {
-        'radius': 5,
+        'radius': 8,
         'initial_velocity': 0,
         'step_velocity': 0,
         'max_velocity': 0,
@@ -48,7 +51,7 @@ ENTITIES = {
         'shape': 'gym_space_crystals/envs/assets/crystal.png'
     },
     'enemy': {
-        'radius': 8,
+        'radius': 20,
         'initial_velocity': 0,
         'step_velocity': 0.5,
         'max_velocity': 3,
