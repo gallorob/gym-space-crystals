@@ -138,7 +138,7 @@ class Enemy(Entity):
         """
         super(Enemy, self).__init__(x, y, _type='enemy', rotation=0, velocity=0)
 
-    def advance(self, target_x : float = 0.0, target_y: float = 0.0):
+    def advance(self, target_x: float = 0.0, target_y: float = 0.0):
         """
         Update the enemy position.
 
@@ -192,7 +192,8 @@ def line_entity_intersection(p1: Tuple[float, float], p2: Tuple[float, float], e
     x0 = e.x
     y0 = e.y
     # compute distance point-line
-    dist = math.fabs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1) / math.sqrt(math.pow(y2 - y1, 2) + math.pow(x2 - x1, 2))
+    dist = math.fabs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) / math.sqrt(
+        math.pow(y2 - y1, 2) + math.pow(x2 - x1, 2))
     if dist <= r:
         # make sure we're in the same quadrant
         if included(x1, x2, x0) and included(y1, y2, y0):
@@ -209,16 +210,48 @@ def border_distance(x: float, y: float, theta: float) -> float:
     :param theta: The angle (in radians)
     :return: The closest distance to the window borders
     """
-    # distance from right border
-    dx1 = (SCREEN_WIDTH - x) / math.cos(theta) if math.fabs(math.cos(theta)) > 1e-6 else 0.0
-    # distance from left border
-    dx2 = (x - 0) / math.cos(theta) if math.fabs(math.cos(theta)) > 1e-6 else 0.0
-    # distance from lower border
-    dy1 = (y - 0) * math.sin(theta)
-    # distance from upper border
-    dy2 = (SCREEN_HEIGHT - y) * math.sin(theta)
-    # compute distance to closest borders
-    return math.sqrt(math.pow(min(dx1, dx2), 2) + math.pow(min(dy1, dy2), 2))
+    x1 = x + max(SCREEN_HEIGHT, SCREEN_WIDTH) * math.cos(theta)
+    y1 = y + max(SCREEN_HEIGHT, SCREEN_WIDTH) * math.sin(theta)
+    # intersection with borders
+    left_x, left_y = line_line_intersection(x, y, x1, y1, 0, 0, 0, SCREEN_HEIGHT)
+    if included(x, x1, left_x) and included(y, y1, left_y):
+        return math.sqrt(math.pow(x - left_x, 2) + math.pow(y - left_y, 2))
+    right_x, right_y = line_line_intersection(x, y, x1, y1, SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+    if included(x, x1, right_x) and included(y, y1, right_y):
+        return math.sqrt(math.pow(x - right_x, 2) + math.pow(y - right_y, 2))
+    down_x, down_y = line_line_intersection(x, y, x1, y1, 0, 0, SCREEN_WIDTH, 0)
+    if included(x, x1, down_x) and included(y, y1, down_y):
+        return math.sqrt(math.pow(x - down_x, 2) + math.pow(y - down_y, 2))
+    up_x, up_y = line_line_intersection(x, y, x1, y1, 0, SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT)
+    if included(x, x1, up_x) and included(y, y1, up_y):
+        return math.sqrt(math.pow(x - up_x, 2) + math.pow(y - up_y, 2))
+    # this should never happen
+    return math.nan
+
+
+def line_line_intersection(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float) -> \
+        Tuple[float, float]:
+    """
+    Compute the line to line intersection
+
+    :param x1: The coordinate X1
+    :param y1: The coordinate Y1
+    :param x2: The coordinate X2
+    :param y2: The coordinate Y2
+    :param x3: The coordinate X3
+    :param y3: The coordinate Y3
+    :param x4: The coordinate X4
+    :param y4: The coordinate Y4
+    :return: The intersection point
+    """
+    d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+    # failsafe if the lines are parallel
+    if d == 0:
+        return math.nan, math.nan
+    # compute intersection point
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / d
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / d
+    return px, py
 
 
 def distance(x: float, y: float, e: Entity) -> float:

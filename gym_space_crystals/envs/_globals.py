@@ -12,9 +12,9 @@ ENVIRONMENT = {
     'crystals_std_2': SCREEN_HEIGHT / 6,
     'n_enemies': 4,
     'enemies_mean_1': SCREEN_WIDTH / 2,
-    'enemies_std_1': SCREEN_WIDTH / 8,
+    'enemies_std_1': SCREEN_WIDTH / 4,
     'enemies_mean_2': SCREEN_HEIGHT / 2,
-    'enemies_std_2': SCREEN_HEIGHT / 8,
+    'enemies_std_2': SCREEN_HEIGHT / 4,
 }
 # -- Entities properties --
 ENTITIES = {
@@ -25,7 +25,7 @@ ENTITIES = {
         'initial_acceleration': 0,
         'acceleration': 0.5,
         'initial_rotation': 0,
-        'step_rotation': 5,
+        'step_rotation': 10,
         'value': 0,
         'shape': 'gym_space_crystals/envs/assets/spaceship.png'
     },
@@ -49,8 +49,8 @@ ENTITIES = {
     },
     'enemy': {
         'radius': 8,
-        'initial_velocity': 3,
-        'step_velocity': 1,
+        'initial_velocity': 0,
+        'step_velocity': 0.5,
         'max_velocity': 3,
         'initial_rotation': 0,
         'step_rotation': 15,

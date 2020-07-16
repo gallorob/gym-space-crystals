@@ -80,6 +80,7 @@ class SpaceCrystalsEnv(gym.Env):
         self.viewer = None
 
         # random seed fixing
+        self.np_random = None
         self.seed(10072020)
 
         # initialize the scene
@@ -138,7 +139,8 @@ class SpaceCrystalsEnv(gym.Env):
                         break  # no need to check for other bullets hitting the same enemy
 
             # remove spaceship if out of bounds or collided with enemy
-            if self.spaceship.x >= SCREEN_WIDTH or self.spaceship.y >= SCREEN_HEIGHT or self.spaceship.x <= 0.0 or self.spaceship.y <= 0.0:
+            if self.spaceship.x >= SCREEN_WIDTH or self.spaceship.y >= SCREEN_HEIGHT or \
+                    self.spaceship.x <= 0.0 or self.spaceship.y <= 0.0:
                 self.done = True  # terminate session
                 self.viewer.geoms.remove(self.spaceship.shape)
                 # decrease reward
@@ -198,7 +200,7 @@ class SpaceCrystalsEnv(gym.Env):
             self.viewer.close()
             self.viewer = None
 
-# -- Sugar coding functions
+    # -- Sugar coding functions
 
     def check_bounds(self, entity: Entity, arr: list):
         """
@@ -231,7 +233,7 @@ class SpaceCrystalsEnv(gym.Env):
             for bullet in self.bullets:
                 self.viewer.add_geom(bullet.shape)
 
-# -- Interacting with the environment --
+    # -- Interacting with the environment --
 
     def make_observations(self):
         """
@@ -244,8 +246,10 @@ class SpaceCrystalsEnv(gym.Env):
         enemies = self.enemies.copy()
         # make observations
         for i in range(N_OBSERVATIONS):
-            x = self.spaceship.x + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.cos(self.spaceship.rotation + i * self.dtheta)
-            y = self.spaceship.y + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.sin(self.spaceship.rotation + i * self.dtheta)
+            x = self.spaceship.x + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.cos(
+                self.spaceship.rotation + i * self.dtheta)
+            y = self.spaceship.y + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.sin(
+                self.spaceship.rotation + i * self.dtheta)
             # check for crystals
             for crystal in crystals:
                 t, d = line_entity_intersection((self.spaceship.x, self.spaceship.y), (x, y), crystal)
@@ -266,9 +270,10 @@ class SpaceCrystalsEnv(gym.Env):
             # else, set border distance
             if self.state[i][0] == 0.0:
                 self.state[i][0] = BORDER_VALUE
-                self.state[i][1] = border_distance(self.spaceship.x, self.spaceship.y, self.spaceship.rotation + i * self.dtheta)
+                self.state[i][1] = border_distance(self.spaceship.x, self.spaceship.y,
+                                                   self.spaceship.rotation + i * self.dtheta)
 
-# -- Spaceship's actions --
+    # -- Spaceship's actions --
 
     def accelerate(self):
         """
