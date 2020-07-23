@@ -21,6 +21,7 @@ def init_scene(env: gym.Env):
     # initialize the scene
     # add the spaceship
     env.spaceship = Spaceship(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
+
     # add the crystals
     for _ in range(ENVIRONMENT.get('n_crystals')):
         env.crystals.append(
@@ -38,7 +39,7 @@ def init_scene(env: gym.Env):
 class SpaceCrystalsEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, draw_lines: bool = False):
         """
         Create the environment
         """
@@ -52,12 +53,13 @@ class SpaceCrystalsEnv(gym.Env):
             4: self.shoot
         }
 
+        self.draw_lines = draw_lines
+
         # action space depends on number of possible actions
         self.action_space = spaces.Discrete(len(self.actions))
         # observation space
-        # tuple (entity type OR border, distance) given the observation angle
-        self.observation_space = spaces.Box(np.zeros((N_OBSERVATIONS, 2)),
-                                            np.ones((N_OBSERVATIONS, 2)) * SCREEN_WIDTH * SCREEN_HEIGHT,
+        self.observation_space = spaces.Box(np.zeros(3 + N_OBSERVATIONS * 2),
+                                            np.ones(3 + N_OBSERVATIONS * 2),
                                             dtype=np.float64)
         # current state
         self.state = None
@@ -179,6 +181,10 @@ class SpaceCrystalsEnv(gym.Env):
         return self.state, self.reward, self.done, {}
 
     def reset(self):
+        """
+        Reset the current scene, computing the observations
+        :return: The state observations
+        """
         # reset the scene
         init_scene(self)
         self.done = False
@@ -189,6 +195,10 @@ class SpaceCrystalsEnv(gym.Env):
         return self.state
 
     def render(self, mode='human'):
+        """
+        Render the current state of the scene
+        :param mode: The rendering mode to use
+        """
         if self.viewer is None:
             self.viewer = rendering.Viewer(SCREEN_WIDTH, SCREEN_HEIGHT)
             self.reset_geoms()
@@ -196,6 +206,9 @@ class SpaceCrystalsEnv(gym.Env):
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def close(self):
+        """
+        Terminate the episode
+        """
         if self.viewer:
             self.viewer.close()
             self.viewer = None
@@ -205,7 +218,6 @@ class SpaceCrystalsEnv(gym.Env):
     def check_bounds(self, entity: Entity, arr: list):
         """
         Check if an entity is within the window bounds and remove it from the scene in case it is
-
         :param entity: The entity to check
         :param arr: The array of the entity type
         """
@@ -240,38 +252,61 @@ class SpaceCrystalsEnv(gym.Env):
         Compute all observations, updating the state
         """
         # reset state
-        self.state = np.zeros((N_OBSERVATIONS, 2))
-        # reference arrays for quicker computations
-        crystals = self.crystals.copy()
-        enemies = self.enemies.copy()
+        self.state = np.zeros(3 + N_OBSERVATIONS * 2)
+        # spaceship status
+        self.state[0] = self.spaceship.x / DIAG
+        self.state[1] = self.spaceship.y / DIAG
+        self.state[2] = self.spaceship.rotation / math.radians(360)
         # make observations
-        for i in range(N_OBSERVATIONS):
+        alpha = 0
+        for i in range(3, 3 + N_OBSERVATIONS * 2 - 1, 2):
             x = self.spaceship.x + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.cos(
-                self.spaceship.rotation + i * self.dtheta)
+                self.spaceship.rotation + alpha * self.dtheta)
             y = self.spaceship.y + (max(SCREEN_HEIGHT, SCREEN_WIDTH)) * math.sin(
-                self.spaceship.rotation + i * self.dtheta)
+                self.spaceship.rotation + alpha * self.dtheta)
+
             # check for crystals
-            for crystal in crystals:
+            for crystal in self.crystals:
                 t, d = line_entity_intersection((self.spaceship.x, self.spaceship.y), (x, y), crystal)
-                if t == 0.0:
-                    self.state[i] = np.array([t, d])
-                    crystals.remove(crystal)
+                if t != 0.0:
+                    self.state[i] = t
+                    self.state[i + 1] = d / DIAG
+
+                    # debugging lines
+                    if self.viewer and self.draw_lines:
+                        line = self.viewer.draw_line((self.spaceship.x, self.spaceship.y), (crystal.x, crystal.y))
+                        line.set_color(0., 0., 1.)
+                        self.viewer.add_onetime(line)
+
             # check for enemies
-            for enemy in enemies:
+            for enemy in self.enemies:
                 t, d = line_entity_intersection((self.spaceship.x, self.spaceship.y), (x, y), enemy)
-                if t == 0.0:
-                    if self.state[i][0] != 0:
-                        if self.state[i][1] > d:
-                            self.state[i] = np.array([t, d / DIAG])
-                            enemies.remove(enemy)
+                if t != 0.0:
+                    if self.state[i] != 0.0:
+                        if self.state[i + 1] > d:
+                            self.state[i] = t
+                            self.state[i + 1] = d / DIAG
+                            # debugging lines
+                            if self.viewer and self.draw_lines:
+                                line = self.viewer.draw_line((self.spaceship.x, self.spaceship.y), (enemy.x, enemy.y))
+                                line.set_color(1., 0., 0.)
+                                self.viewer.add_onetime(line)
+
                     else:
-                        self.state[i] = np.array([t, d / DIAG])
-                        enemies.remove(enemy)
+                        self.state[i] = t
+                        self.state[i + 1] = d / DIAG
+                        # debugging lines
+                        if self.viewer and self.draw_lines:
+                            line = self.viewer.draw_line((self.spaceship.x, self.spaceship.y), (enemy.x, enemy.y))
+                            line.set_color(1., 0., 0.)
+                            self.viewer.add_onetime(line)
+
             # else, set border distance
-            if self.state[i][0] == 0.0:
-                self.state[i][0] = BORDER_VALUE
-                self.state[i][1] = border_distance(self.spaceship.x, self.spaceship.y,
-                                                   self.spaceship.rotation + i * self.dtheta) / DIAG
+            if self.state[i] == 0.0:
+                self.state[i] = BORDER_VALUE
+                self.state[i + 1] = border_distance(self.spaceship.x, self.spaceship.y,
+                                                    self.spaceship.rotation + i * self.dtheta) / DIAG
+            alpha += 1
 
     # -- Spaceship's actions --
 

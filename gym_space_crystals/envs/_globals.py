@@ -5,7 +5,7 @@ SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 400
 DIAG = math.sqrt(math.pow(SCREEN_WIDTH, 2) + math.pow(SCREEN_HEIGHT, 2))
 N_OBSERVATIONS = 12
-BORDER_VALUE = -1
+BORDER_VALUE = 0
 # -- Environment properties --
 ENVIRONMENT = {
     'n_crystals': 7,
@@ -38,7 +38,7 @@ ENTITIES = {
         'step_velocity': 0,
         'max_velocity': 0,
         'initial_rotation': 0,
-        'value': 1,
+        'value': 0,
         'shape': 'gym_space_crystals/envs/assets/bullet.png'
     },
     'crystal': {
@@ -47,7 +47,7 @@ ENTITIES = {
         'step_velocity': 0,
         'max_velocity': 0,
         'initial_rotation': 0,
-        'value': 2,
+        'value': 1,
         'shape': 'gym_space_crystals/envs/assets/crystal.png'
     },
     'enemy': {
@@ -57,7 +57,7 @@ ENTITIES = {
         'max_velocity': 3,
         'initial_rotation': 0,
         'step_rotation': 15,
-        'value': 3,
+        'value': -1,
         'shape': 'gym_space_crystals/envs/assets/enemy.png'
     }
 }
